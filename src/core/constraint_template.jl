@@ -307,7 +307,7 @@ function constraint_gp_iconv_lin_squared_2(pm::AbstractPowerModel, i::Int; nw::I
     constraint_gp_iconv_lin_squared_2(pm, nw, i, T2, T3)
 end
 
-function constraint_gp_converter_dc_power(pm::_PM.AbstractIVRModel, i::Int; nw::Int=_PM.nw_id_default)
+function constraint_gp_converter_dc_power(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
     conv = _PM.ref(pm, nw, :convdc, i)
     T2  = pm.data["T2"]
     T3  = pm.data["T3"]

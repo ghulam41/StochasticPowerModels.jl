@@ -31,9 +31,7 @@ end
 function build_sopf_acr(pm::AbstractPowerModel)
     for (n, network) in _PM.nws(pm) 
         variable_bus_voltage(pm, nw=n)
-
         variable_gen_power(pm, nw=n, bounded=false)
-
         variable_branch_power(pm, nw=n, bounded=false)
         variable_branch_current(pm, nw=n, bounded=false)
         variable_branch_voltage_drop(pm, nw=n) 
@@ -51,10 +49,8 @@ function build_sopf_acr(pm::AbstractPowerModel)
 
         for b in _PM.ids(pm, :branch, nw=n)   
             constraint_branch_voltage(pm, b, nw=n)
-
             constraint_gp_power_branch_to(pm, b, nw=n)
             constraint_gp_power_branch_from(pm, b, nw=n)
-
             constraint_gp_branch_series_current_magnitude_squared(pm, b, nw=n)
         end
     end

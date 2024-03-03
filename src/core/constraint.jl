@@ -371,8 +371,6 @@ function constraint_gp_converter_losses(pm::_PM.AbstractIVRModel, n::Int, i, T2,
 end
 
 
-
-
 function constraint_gp_iconv_lin_squared_2(pm::AbstractACRModel, n::Int, i, T2, T3)
 
     iconv_lin_s = _PM.var(pm, n, :iconv_lin_s, i)
@@ -418,6 +416,41 @@ function constraint_gp_RES_power_imaginary(pm::AbstractIVRModel, n::Int, i, p, q
                                     for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
                     )
 end
+
+#
+function constraint_gp_RES_power_real(pm::AbstractACRModel, n::Int, i, p, pd, T2, T3, p_size; curt=0.0)
+        
+    vr  = Dict(nw => _PM.var(pm, nw, :vr, i) for nw in _PM.nw_ids(pm))
+    vi  = Dict(nw => _PM.var(pm, nw, :vi, i) for nw in _PM.nw_ids(pm))
+
+    crd_RES = Dict(nw => _PM.var(pm, nw, :crd_RES, p) for nw in _PM.nw_ids(pm))
+    cid_RES = Dict(nw => _PM.var(pm, nw, :cid_RES, p) for nw in _PM.nw_ids(pm))
+
+    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * pd * p_size *(1-curt)
+                                ==
+                                sum(T3.get([n1-1,n2-1,n-1]) *
+                                    (vr[n1] * crd_RES[n2] + vi[n1] * cid_RES[n2])
+                                    for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
+                    )
+        
+end
+
+function constraint_gp_RES_power_imaginary(pm::AbstractACRModel, n::Int, i, p, qd, T2, T3, q_size; curt=0.0)
+    
+    vr  = Dict(n => _PM.var(pm, n, :vr, i) for n in _PM.nw_ids(pm))
+    vi  = Dict(n => _PM.var(pm, n, :vi, i) for n in _PM.nw_ids(pm))
+
+    crd_RES = Dict(n => _PM.var(pm, n, :crd_RES, p) for n in _PM.nw_ids(pm))
+    cid_RES = Dict(n => _PM.var(pm, n, :cid_RES, p) for n in _PM.nw_ids(pm))
+
+    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * qd * q_size * (1-curt)
+                                ==
+                                sum(T3.get([n1-1,n2-1,n-1]) *
+                                    (vi[n1] * crd_RES[n2] - vr[n1] * cid_RES[n2])
+                                    for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
+                    )
+end
+#
 
 function constraint_conv_transformer(pm::_PM.AbstractIVRModel, n::Int, i::Int, rtf, xtf, acbus, tm, transformer)
     vi_r = _PM.var(pm, n, :vr, acbus)

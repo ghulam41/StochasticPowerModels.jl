@@ -39,9 +39,7 @@ function build_sopf_iv_acdc(pm::AbstractPowerModel)
         _PM.variable_dcline_current(pm, nw=n)
 
         variable_bus_voltage(pm, nw=n, bounded=false)
-
         variable_branch_current(pm, nw=n, bounded=false)
-
         variable_gen_power(pm, nw=n, bounded=bounded)
         variable_gen_current(pm, nw=n, bounded=bounded)
         variable_load_current(pm, nw=n, bounded=bounded)
@@ -68,7 +66,6 @@ function build_sopf_iv_acdc(pm::AbstractPowerModel)
 
         for i in _PM.ids(pm, :bus, nw=n)
             constraint_current_balance_with_RES(pm, i, nw=n)
-
             constraint_gp_bus_voltage_magnitude_squared(pm, i, nw=n)
         end
 

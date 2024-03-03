@@ -31,9 +31,7 @@ end
 function build_sopf_iv(pm::AbstractPowerModel)
     for (n, network) in _PM.nws(pm) 
         variable_bus_voltage(pm, nw=n)
-
         variable_branch_current(pm, nw=n)
-
         variable_gen_power(pm, nw=n, bounded=false)                             # enforcing bounds alters the objective 
         variable_gen_current(pm, nw=n, bounded=false)                           # enforcing bounds makes problem infeasible
         variable_load_current(pm, nw=n)
@@ -43,22 +41,17 @@ function build_sopf_iv(pm::AbstractPowerModel)
         for i in _PM.ids(pm, :ref_buses, nw=n)
             constraint_bus_voltage_ref(pm, i, nw=n)
         end
-
         for i in _PM.ids(pm, :bus, nw=n)
             constraint_current_balance(pm, i, nw=n)
             constraint_gp_bus_voltage_magnitude_squared(pm, i, nw=n)
         end
-
         for b in _PM.ids(pm, :branch, nw=n)
             _PM.constraint_voltage_drop(pm, b, nw=n)
-
             constraint_gp_branch_series_current_magnitude_squared(pm, b, nw=n)
         end
-
         for g in _PM.ids(pm, :gen, nw=n)
             constraint_gp_gen_power(pm, g, nw=n)
         end
-
         for l in _PM.ids(pm, :load, nw=n)
             constraint_gp_load_power(pm, l, nw=n)
         end

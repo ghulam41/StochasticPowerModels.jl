@@ -18,6 +18,7 @@ module StochasticPowerModels
     import PolyChaos
     import PowerModels
     import PowerModelsACDC
+    import PowerModelsSecurityConstrained
     import Random, Distributions
 
     # import types
@@ -30,6 +31,7 @@ module StochasticPowerModels
     const _PM = PowerModels
     const _SPM = StochasticPowerModels
     const _PMACDC = PowerModelsACDC
+    const _PMSC = PowerModelsSecurityConstrained
 
     # memento logger
     function __init__()
@@ -51,6 +53,9 @@ module StochasticPowerModels
     include("core/constraint_template.jl")
     include("core/objective.jl")
     include("core/variable.jl")
+    include("core/constraint_scopf.jl")
+    include("core/scopf_iterative.jl")
+    include("core/variable_scopf.jl")
 
     include("form/acr.jl")
     include("form/iv.jl")
@@ -58,6 +63,7 @@ module StochasticPowerModels
     include("prob/sopf_acr.jl")
     include("prob/sopf_iv.jl")
     include("prob/sopf_iv_acdc.jl")
+    include("prob/sscopf_acr.jl")
 
     include("util/data.jl")
     include("util/util.jl")

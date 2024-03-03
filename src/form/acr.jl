@@ -69,8 +69,10 @@ function constraint_power_balance(pm::AbstractACRModel, n::Int, i::Int, bus_arcs
     )
 end
 
+
 ## branch
 ""
+
 function constraint_branch_voltage(pm::AbstractACRModel, i::Int; nw::Int=nw_id_default)
     branch = _PM.ref(pm, nw, :branch, i)
     f_bus = branch["f_bus"]

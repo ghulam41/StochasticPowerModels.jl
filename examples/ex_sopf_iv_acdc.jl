@@ -1,5 +1,5 @@
-using Pkg
-Pkg.activate(".")
+# using Pkg
+# Pkg.activate(".")
 
 using JuMP
 using Ipopt
@@ -44,7 +44,7 @@ total_load = sum([data["load"]["$i"]["pd"] for i=1:length(data["load"])])
 p_size = pen_level * total_load / length(data["RES"]) #Calculate RES size for each RES bus
 
 println("   Solution progress: Solving...")
-result_spm = _SPM.solve_sopf_iv_acdc(file, _PM.IVRPowerModel, ipopt_solver, deg=deg, p_size=p_size);
+result_spm_iv = _SPM.solve_sopf_iv_acdc(file, _PM.IVRPowerModel, ipopt_solver, deg=deg, p_size=p_size)
 println("   Solution progress: Solved! (", string(result_spm["primal_status"]), ")")
 
 # Show results on the terminal

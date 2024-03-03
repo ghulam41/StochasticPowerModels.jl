@@ -83,7 +83,7 @@ function variable_active_dcbranch_flow(pm::AbstractACRModel; nw::Int=nw_id_defau
     _PMACDC.variable_active_dcbranch_flow(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
 
-function variable_dcbranch_current(pm::AbstractACRModel; nw::Int=nw_id_default, bounded::Bool=false, report::Bool=true, kwargs...)
+function variable_dcbranch_current(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=false, report::Bool=true, kwargs...)
     _PMACDC.variable_dcbranch_current(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
 
@@ -279,7 +279,7 @@ function variable_converter_current_lin_squared(pm::_PM.AbstractPowerModel; nw::
     report && _PM.sol_component_value(pm, nw, :convdc, :iconv_lin_s, _PM.ids(pm, nw, :convdc), iconv_lin_s)
 end
 
-function variable_RES_current(pm::AbstractIVRModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
+function variable_RES_current(pm::AbstractPowerModel; nw::Int=nw_id_default, bounded::Bool=true, report::Bool=true, kwargs...)
     variable_RES_current_real(pm, nw=nw, bounded=bounded, report=report; kwargs...)
     variable_RES_current_imaginary(pm, nw=nw, bounded=bounded, report=report; kwargs...)
 end
