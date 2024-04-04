@@ -672,3 +672,310 @@ function constraint_ne_power_balance_shunt_dispatch(pm::_PM.AbstractACPModel, n:
         _PM.sol(pm, n, :bus, i)[:lam_kcl_i] = cstr_q
     end
 end
+
+
+
+
+function run_scopf_acdc_benders_cuts(network::Dict{String,<:Any}, model_type::Type, optimizer, setting; max_iter::Int=1000, time_limit::Float64=Inf)
+    results = Dict{String, Any}()
+    time_start = time()
+ 
+    # initiallize solve
+    result = _SPM.run_master_scopf_bf(network, model_type, optimizer, setting=setting);
+    if !(result["termination_status"] == _PM.OPTIMAL || result["termination_status"] == _PM.LOCALLY_SOLVED || result["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+        Memento.warn(_LOGGER, "initial master problem solve failed in run_scopf_acdc_benders_cuts with status $(result["termination_status"])")
+    end
+    Memento.info(_LOGGER, "objective: $(result["objective"])")
+    _PM.update_data!(network, result["solution"]);
+    _PMACDCsc.update_data_converter_setpoints!(network, result["solution"]);
+
+    # iterations
+    iteration = 1
+    cuts_found = 1
+    while cuts_found > 0
+        time_start_iteration = time()
+
+        cuts = _SPM.check_acdc_subproblems(network, model_type, optimizer, setting, cuts_limit=iteration)
+        network["secured_contingencies"] = cuts.secured_contingencies
+        cuts_found = length(cuts.benders_cuts)
+
+        if cuts_found <= 0
+            Memento.info(_LOGGER, "no benders cuts found acdc scopf fixed-point reached")
+            break
+        else
+            Memento.info(_LOGGER, "found $(cuts_found) benders cuts")
+        end
+
+        append!(network["cuts"], cuts.benders_cuts)
+        Memento.info(_LOGGER, "active benders cuts: $(length(network["cuts"]))")
+
+        time_solve_start = time()
+    
+        # master solve
+        result = _SPM.run_master_scopf_bf(network, model_type, optimizer, setting=setting);
+        if !(result["termination_status"] == _PM.OPTIMAL || result["termination_status"] == _PM.LOCALLY_SOLVED || result["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+            Memento.warn(_LOGGER, "master problem solve failed in run_scopf_acdc_benders_cuts with status $(result["termination_status"]), terminating fixed-point early")
+            break
+        end
+        Memento.info(_LOGGER, "objective: $(result["objective"])")
+        _PM.update_data!(network, result["solution"]);
+        _PMACDCsc.update_data_converter_setpoints!(network, result["solution"]);
+
+        time_iteration = time() - time_start_iteration
+        time_remaining = time_limit - (time() - time_start)
+        if time_remaining < time_iteration
+            Memento.warn(_LOGGER, "insufficent time for next iteration, time remaining $(time_remaining), estimated iteration time $(time_iteration)")
+            break
+        end
+        iteration += 1
+    end
+    results["iterations"] = iteration
+    results["final"] = result 
+
+    return results
+end
+
+function run_scopf_acdc_benders_cuts_soft(network::Dict{String,<:Any}, model_type::Type, optimizer, setting; max_iter::Int=1000, time_limit::Float64=Inf)
+    results = Dict{String, Any}()
+    time_start = time()
+ 
+    mobj = 0.0
+    # initiallize solve
+    result = _SPM.run_master_scopf_bf(network, model_type, optimizer, setting=setting);
+    if !(result["termination_status"] == _PM.OPTIMAL || result["termination_status"] == _PM.LOCALLY_SOLVED || result["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+        Memento.warn(_LOGGER, "initial master problem solve failed in run_scopf_acdc_benders_cuts with status $(result["termination_status"])")
+    end
+    Memento.info(_LOGGER, "initial master problem objective: $(result["objective"])")
+    _PM.update_data!(network, result["solution"]);
+    _PMACDCsc.update_data_converter_setpoints!(network, result["solution"]);
+    mobj = result["objective"]
+
+    # iterations
+    iteration = 1
+    cuts_found = 1
+    while cuts_found > 0
+        time_start_iteration = time()
+
+        cuts = _SPM.check_acdc_subproblems_soft(network, model_type, optimizer, setting, cuts_limit=iteration)
+
+        # convergence check
+        if sum( ((cuts.sub_obj[val] - mobj)/cuts.sub_obj[val]) for val in eachindex(cuts.sub_obj)) < 0.001
+            Memento.info(_LOGGER, "modified benders decoposition converged, fixed-point reached")
+            break
+        end
+        time_iteration = time() - time_start_iteration
+        time_remaining = time_limit - (time() - time_start)
+        if time_remaining < time_iteration
+            Memento.warn(_LOGGER, "insufficent time for next iteration, time remaining $(time_remaining), estimated iteration time $(time_iteration)")
+            break
+        end
+        if iteration >= max_iter
+            Memento.warn(_LOGGER, "maximum iterations reached $(max_iter), terminating fixed-point early")
+            break
+        end
+
+        cuts_found = length(cuts.benders_cuts)
+        if cuts_found <= 0
+            Memento.info(_LOGGER, "no benders cuts found acdc scopf fixed-point reached")
+            break
+        else
+            Memento.info(_LOGGER, "found $(cuts_found) benders cuts")
+        end
+
+        append!(network["cuts"], cuts.benders_cuts)
+        Memento.info(_LOGGER, "active benders cuts: $(length(network["cuts"]))")
+
+            
+        # master solve
+        result = _SPM.run_master_scopf_bf_soft(network, model_type, optimizer, setting=setting);
+        if !(result["termination_status"] == _PM.OPTIMAL || result["termination_status"] == _PM.LOCALLY_SOLVED || result["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+            Memento.warn(_LOGGER, "master problem solve failed in run_scopf_acdc_benders_cuts with status $(result["termination_status"]), terminating fixed-point early")
+            break
+        end
+        Memento.info(_LOGGER, "master problem objective: $(result["objective"])")
+        _PM.update_data!(network, result["solution"]);
+        _PMACDCsc.update_data_converter_setpoints!(network, result["solution"]);
+        mobj = result["objective"]
+
+
+        iteration += 1
+    end
+    results["iterations"] = iteration
+    results["final"] = result 
+
+    return results
+end
+
+
+
+
+
+
+function check_acdc_subproblems(network, model_type, optimizer, setting; cuts_limit=typemax(Int64), gen_eval_limit=typemax(Int64),
+    branch_eval_limit=typemax(Int64), branchdc_eval_limit=typemax(Int64), convdc_eval_limit=typemax(Int64))    
+
+    time_start_subproblems = time()
+        
+    gen_contingencies = _PMSC.calc_c1_gen_contingency_subset(network, gen_eval_limit=gen_eval_limit)
+    branch_contingencies = _PMSC.calc_c1_branch_contingency_subset(network, branch_eval_limit=branch_eval_limit)
+    branchdc_contingencies = _PMACDCsc.calc_branchdc_contingency_subset(network, branchdc_eval_limit=branchdc_eval_limit)   
+    convdc_contingencies = _PMACDCsc.calc_convdc_contingency_subset(network, convdc_eval_limit=convdc_eval_limit)
+
+    benders_cuts = [];
+    for (i,cont) in enumerate(gen_contingencies)
+        if !(cont in network["secured_contingencies"])
+            # if length(benders_cuts) >= cuts_limit
+            #     Memento.info(_LOGGER, "hit total cut limit $(cuts_limit)")           
+            #     break
+            # end
+
+            cont_gen = network["gen"]["$(cont.idx)"]
+            pg_lost = cont_gen["pg"]
+            cont_gen["gen_status"] = 0
+            cont_gen["pg"] = 0.0
+
+            result_sub = _SPM.run_sub_scopf_bf(network, model_type, optimizer, setting=setting);
+            if (result_sub["termination_status"] == _PM.OPTIMAL || result_sub["termination_status"] == _PM.LOCALLY_SOLVED || result_sub["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+                Memento.info(_LOGGER, "subproblem solve is feasible in check_acdc_subproblems, status $(result_sub["termination_status"]): contingency $(cont.label) is secured")
+                push!(network["secured_contingencies"], cont)
+            end
+            Memento.info(_LOGGER, "objective: $(result_sub["objective"])")
+            
+            # cuts
+            if !(cont in network["secured_contingencies"])
+                lm_p = Dict(parse(Int, i) => gen["lm_p"] for (i, gen) in result_sub["solution"]["gen"]);
+                lm_q = Dict(parse(Int, i) => gen["lm_q"] for (i, gen) in result_sub["solution"]["gen"]);
+                lm_ac_p = Dict(parse(Int, i) => conv["lm_ac_p"] for (i, conv) in result_sub["solution"]["convdc"]);
+                lm_ac_q = Dict(parse(Int, i) => conv["lm_ac_q"] for (i, conv) in result_sub["solution"]["convdc"]);
+                obj = result_sub["objective"];
+
+                cut = (obj=obj, lm_p=lm_p, lm_q=lm_q, lm_ac_p=lm_ac_p, lm_ac_q=lm_ac_q);
+                
+                push!(benders_cuts, cut);
+            end
+
+            cont_gen["gen_status"] = 1
+            cont_gen["pg"] = pg_lost
+        end
+    end
+
+    for (i,cont) in enumerate(branch_contingencies)
+        if !(cont in network["secured_contingencies"])
+            # if length(benders_cuts) >= cuts_limit
+            #     Memento.info(_LOGGER, "hit total cut limit $(cuts_limit)")                                    
+            #     break
+            # end
+
+            cont_branch = network["branch"]["$(cont.idx)"]
+            cont_branch["br_status"] = 0
+            _PMACDC.fix_data!(network)
+
+            result_sub = _SPM.run_sub_scopf_bf(network, model_type, optimizer, setting=setting);
+            if (result_sub["termination_status"] == _PM.OPTIMAL || result_sub["termination_status"] == _PM.LOCALLY_SOLVED || result_sub["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+                Memento.info(_LOGGER, "subproblem solve is feasible in check_acdc_subproblems, status $(result_sub["termination_status"]): contingency $(cont.label) is secured")
+                push!(network["secured_contingencies"], cont)
+            end
+            Memento.info(_LOGGER, "objective: $(result_sub["objective"])")
+
+            # cuts
+            if !(cont in network["secured_contingencies"])
+                lm_p = Dict(parse(Int, i) => gen["lm_p"] for (i, gen) in result_sub["solution"]["gen"]);
+                lm_q = Dict(parse(Int, i) => gen["lm_q"] for (i, gen) in result_sub["solution"]["gen"]);
+                lm_ac_p = Dict(parse(Int, i) => conv["lm_ac_p"] for (i, conv) in result_sub["solution"]["convdc"]);
+                lm_ac_q = Dict(parse(Int, i) => conv["lm_ac_q"] for (i, conv) in result_sub["solution"]["convdc"]);
+                obj = result_sub["objective"];
+
+                cut = (obj=obj, lm_p=lm_p, lm_q=lm_q, lm_ac_p=lm_ac_p, lm_ac_q=lm_ac_q);
+                
+                push!(benders_cuts, cut);
+            end
+
+            cont_branch["br_status"] = 1
+        end
+    end
+
+    time_contingencies = time() - time_start_subproblems
+    Memento.info(_LOGGER, "subproblems eval time: $(time_contingencies)")            
+
+    return (benders_cuts=benders_cuts, secured_contingencies=network["secured_contingencies"])
+end
+
+
+
+function check_acdc_subproblems_soft(network, model_type, optimizer, setting; cuts_limit=typemax(Int64), gen_eval_limit=typemax(Int64),
+    branch_eval_limit=typemax(Int64), branchdc_eval_limit=typemax(Int64), convdc_eval_limit=typemax(Int64))    
+
+    time_start_subproblems = time()
+        
+    gen_contingencies = _PMSC.calc_c1_gen_contingency_subset(network, gen_eval_limit=gen_eval_limit)
+    branch_contingencies = _PMSC.calc_c1_branch_contingency_subset(network, branch_eval_limit=branch_eval_limit)
+    branchdc_contingencies = _PMACDCsc.calc_branchdc_contingency_subset(network, branchdc_eval_limit=branchdc_eval_limit)   
+    convdc_contingencies = _PMACDCsc.calc_convdc_contingency_subset(network, convdc_eval_limit=convdc_eval_limit)
+
+    benders_cuts = [];
+    sub_obj = [];
+    for (i,cont) in enumerate(gen_contingencies)
+     
+        cont_gen = network["gen"]["$(cont.idx)"]
+        pg_lost = cont_gen["pg"]
+        cont_gen["gen_status"] = 0
+        cont_gen["pg"] = 0.0
+
+        result_sub = _SPM.run_sub_scopf_bf_soft(network, model_type, optimizer, setting=setting);
+        if !(result_sub["termination_status"] == _PM.OPTIMAL || result_sub["termination_status"] == _PM.LOCALLY_SOLVED || result_sub["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+            Memento.info(_LOGGER, "subproblem solve is infeasible in check_acdc_subproblems, status $(result_sub["termination_status"])")
+        end
+        Memento.info(_LOGGER, "subproblem objective: $(result_sub["objective"])")
+        push!(sub_obj, result_sub["objective"])
+            
+        # cuts
+        lm_p = Dict(parse(Int, i) => gen["lm_p"] for (i, gen) in result_sub["solution"]["gen"]);
+        lm_q = Dict(parse(Int, i) => gen["lm_q"] for (i, gen) in result_sub["solution"]["gen"]);
+        lm_ac_p = Dict(parse(Int, i) => conv["lm_ac_p"] for (i, conv) in result_sub["solution"]["convdc"]);
+        lm_ac_q = Dict(parse(Int, i) => conv["lm_ac_q"] for (i, conv) in result_sub["solution"]["convdc"]);
+        obj = result_sub["objective"];
+                 
+        cut = (cont_id = cont.idx, obj=obj, lm_p=lm_p, lm_q=lm_q, lm_ac_p=lm_ac_p, lm_ac_q=lm_ac_q);
+                
+        push!(benders_cuts, cut);
+
+        cont_gen["gen_status"] = 1
+        cont_gen["pg"] = pg_lost
+    end
+
+    for (i,cont) in enumerate(branch_contingencies)
+        if !(cont in network["secured_contingencies"])
+        
+            cont_branch = network["branch"]["$(cont.idx)"]
+            cont_branch["br_status"] = 0
+            _PMACDC.fix_data!(network)
+
+            result_sub = _SPM.run_sub_scopf_bf_soft(network, model_type, optimizer, setting=setting);
+            if !(result_sub["termination_status"] == _PM.OPTIMAL || result_sub["termination_status"] == _PM.LOCALLY_SOLVED || result_sub["termination_status"] == _PM.ALMOST_LOCALLY_SOLVED)
+                Memento.info(_LOGGER, "subproblem solve is infeasible in check_acdc_subproblems, status $(result_sub["termination_status"])")
+            end
+            Memento.info(_LOGGER, "subproblem objective: $(result_sub["objective"])")
+            push!(sub_obj, result_sub["objective"])
+
+            # cuts
+            if !(cont in network["secured_contingencies"])
+                lm_p = Dict(parse(Int, i) => gen["lm_p"] for (i, gen) in result_sub["solution"]["gen"]);
+                lm_q = Dict(parse(Int, i) => gen["lm_q"] for (i, gen) in result_sub["solution"]["gen"]);
+                lm_ac_p = Dict(parse(Int, i) => conv["lm_ac_p"] for (i, conv) in result_sub["solution"]["convdc"]);
+                lm_ac_q = Dict(parse(Int, i) => conv["lm_ac_q"] for (i, conv) in result_sub["solution"]["convdc"]);
+                obj = result_sub["objective"];
+
+                cut = (cont_id = cont.idx, obj=obj, lm_p=lm_p, lm_q=lm_q, lm_ac_p=lm_ac_p, lm_ac_q=lm_ac_q);
+                        
+                push!(benders_cuts, cut);
+            end
+            
+            cont_branch["br_status"] = 1
+        end
+    end
+
+    time_contingencies = time() - time_start_subproblems
+    Memento.info(_LOGGER, "subproblems eval time: $(time_contingencies)")            
+
+    return (benders_cuts=benders_cuts, sub_obj=sub_obj)  
+end

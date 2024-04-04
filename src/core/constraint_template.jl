@@ -120,6 +120,16 @@ function constraint_gp_gen_power(pm::AbstractPowerModel, g::Int; nw::Int=nw_id_d
     constraint_gp_gen_power_imaginary(pm, nw, i, g, T2, T3)
 end
 
+function constraint_gp_gen_power_n(pm::AbstractPowerModel, g::Int; nw::Int=nw_id_default)
+    i   = _PM.ref(pm, nw, :gen, g, "gen_bus")
+
+    T2  = pm.data["T2"]
+    T3  = pm.data["T3"]
+
+    constraint_gp_gen_power_n(pm, nw, i, g, T2, T3)
+end
+
+
 ## load
 ""
 function constraint_gp_load_power(pm::AbstractPowerModel, l::Int; nw::Int=nw_id_default)
@@ -133,6 +143,19 @@ function constraint_gp_load_power(pm::AbstractPowerModel, l::Int; nw::Int=nw_id_
 
     constraint_gp_load_power_real(pm, nw, i, l, pd, T2, T3)
     constraint_gp_load_power_imaginary(pm, nw, i, l, qd, T2, T3)
+end
+
+function constraint_gp_load_power_n(pm::AbstractPowerModel, l::Int; nw::Int=nw_id_default)
+    i   = _PM.ref(pm, nw, :load, l, "load_bus") 
+
+    pd  = _PM.ref(pm, nw, :load, l, "pd")
+    qd  = _PM.ref(pm, nw, :load, l, "qd")
+
+    T2  = pm.data["T2"]
+    T3  = pm.data["T3"]
+
+    constraint_gp_load_power_n(pm, nw, i, l, pd, qd, T2, T3)
+
 end
 
 # chance constraint limit
@@ -481,7 +504,7 @@ function constraint_cc_dc_branch_current(pm::AbstractPowerModel, i::Int; nw::Int
     f_idx = (i, f_bus, t_bus)
     t_idx = (i, t_bus, f_bus)
     
-    Imax = branch["rateA"]/vpu
+     
     Imin = - branch["rateA"]/vpu
    
        

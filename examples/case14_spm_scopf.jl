@@ -4,11 +4,13 @@ using Ipopt
 using Gurobi
 using Juniper
 using PowerModels
+using PowerModelsACDC
 using StochasticPowerModels
 using PowerModelsSecurityConstrained
 
 # constants 
 const _PM = PowerModels
+const _PMACDC = PowerModelsACDC
 const _SPM = StochasticPowerModels
 const _PMSC = PowerModelsSecurityConstrained
 
@@ -99,6 +101,23 @@ result_ssctnep = _SPM.run_ssctnep_cuts(data, _PM.ACRPowerModel, minlp_solver, de
 result_scopf = _SPM.run_scopf_cuts(data, _PM.ACPPowerModel, gurobi_solver)
 
 result_sctnep = _SPM.run_sctnep_cuts(data, _PM.ACPPowerModel, minlp_solver)
+
+
+## soc
+case = "case5_ACDC.m"
+file  = joinpath(BASE_DIR, "test/data/matpower", case)
+data  = _PM.parse_file(file)
+_PMACDC.process_additional_data!(data)
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true) 
+
+result = _PMACDC.run_acdcopf(data, _PM.SOCWRPowerModel, nlp_solver, setting=s)
+result = _PMACDC.run_acdcopf_bf(data, _PM.SOCBFPowerModel, nlp_solver, setting=s)
+result = _SPM.run_master_bf(data, _PM.SOCBFPowerModel, nlp_solver, setting=s)
+
+
+
+##
+
 
 solution = result["solution"]["nw"]["1"]
 solution["per_unit"] = result["solution"]["per_unit"]

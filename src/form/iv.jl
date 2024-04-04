@@ -227,6 +227,32 @@ function constraint_gp_gen_power_imaginary(pm::AbstractIVRModel, n::Int, i, g, T
                     )
 end
 
+function constraint_gp_gen_power_n(pm::AbstractPowerModel, n::Int, i, g, T2, T3)
+
+    vms = _PM.var(pm, n, :vms, i)
+    
+    crg = Dict(nw => _PM.var(pm, nw, :crg, g) for nw in _PM.nw_ids(pm))
+    cig = Dict(nw => _PM.var(pm, nw, :cig, g) for nw in _PM.nw_ids(pm))
+    cmsg = _PM.var(pm, n, :cmsg, g)
+
+    pg  = _PM.var(pm, n, :pg, g)
+    qg  = _PM.var(pm, n, :qg, g)    
+
+    JuMP.@constraint(pm.model, pg^2 + qg^2 >= vms * cmsg)
+    # JuMP.@constraint(pm.model, [(vms + cmsg), (vms - cmsg), 2*pg, 2*qg] in JuMP.SecondOrderCone())
+    # JuMP.@constraint(pm.model, [vms, cmsg, pg, qg] in JuMP.RotatedSecondOrderCone())
+    # JuMP.@constraint(pm.model, [vms*cmsg+1, 2*pg, 2*qg, vms*cmsg-1] in JuMP.SecondOrderCone())
+
+    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * cmsg 
+                    ==
+                        sum(T3.get([n1-1,n2-1,n-1]) * 
+                            (crg[n1] * crg[n2] + cig[n1] * cig[n2]) 
+                            for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
+                    )
+end
+
+
+
 ## load
 ""
 function constraint_gp_load_power_real(pm::AbstractIVRModel, n::Int, i, l, pd, T2, T3)
@@ -258,6 +284,29 @@ function constraint_gp_load_power_imaginary(pm::AbstractIVRModel, n::Int, i, l, 
                                     for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
                     )
 end
+
+function constraint_gp_load_power_n(pm::AbstractIVRModel, n::Int, i, l, pd, qd, T2, T3)
+
+    vms = _PM.var(pm, n, :vi, i)
+
+    crd = Dict(nw => _PM.var(pm, nw, :crd, l) for nw in _PM.nw_ids(pm))
+    cid = Dict(nw => _PM.var(pm, nw, :cid, l) for nw in _PM.nw_ids(pm))
+    cmsd = _PM.var(pm, n, :cmsd, l)
+
+    JuMP.@constraint(pm.model, pd^2 + qd^2 >= vms * cmsd)
+    # JuMP.@constraint(pm.model, [(vms + cmsd), (vms - cmsd), 2*pd, 2*qd] in JuMP.SecondOrderCone())
+
+    JuMP.@constraint(pm.model,  T2.get([n-1,n-1]) * cmsd 
+    ==
+        sum(T3.get([n1-1,n2-1,n-1]) * 
+            (crd[n1] * crd[n2] + cid[n1] * cid[n2]) 
+            for n1 in _PM.nw_ids(pm), n2 in _PM.nw_ids(pm))
+    )
+
+end
+
+
+
 
 # solution
 ""

@@ -118,6 +118,11 @@ function build_sscopf_acr(pm::AbstractPowerModel)
         constraint_cc_gen_power(pm, g, nw=1)
     end
 
+    # for (i,cut) in enumerate(_PM.ref(pm, nw=1, :branch_flow_cuts))
+    #     constraint_cc_branch_contingency_ptdf_thermal_limit_from_soft(pm, i, nw=1)
+    #     # constraint_branch_contingency_ptdf_thermal_limit_to_soft(pm, i, nw=n)
+    # end
+
     objective_min_expected_generation_cost_soft(pm)
 end
 

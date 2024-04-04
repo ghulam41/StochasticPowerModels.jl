@@ -20,6 +20,7 @@ module StochasticPowerModels
     import PowerModelsACDC
     import PowerModelsSecurityConstrained
     import Random, Distributions
+    import PowerModelsACDCsecurityconstrained
 
     # import types
     import PowerModels: AbstractPowerModel, AbstractACRModel, AbstractIVRModel
@@ -32,10 +33,11 @@ module StochasticPowerModels
     const _SPM = StochasticPowerModels
     const _PMACDC = PowerModelsACDC
     const _PMSC = PowerModelsSecurityConstrained
+    const _PMACDCsc = PowerModelsACDCsecurityconstrained
 
     # memento logger
     function __init__()
-        global _LOGGER = Memento.getlogger(PowerModels)
+        global _LOGGER = Memento.getlogger(@__MODULE__)
     end
 
     # const 
@@ -64,6 +66,7 @@ module StochasticPowerModels
     include("prob/sopf_iv.jl")
     include("prob/sopf_iv_acdc.jl")
     include("prob/sscopf_acr.jl")
+    include("prob/dscopf_socbf.jl")
 
     include("util/data.jl")
     include("util/util.jl")

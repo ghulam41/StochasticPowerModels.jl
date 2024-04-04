@@ -19,7 +19,7 @@ file  = joinpath(BASE_DIR, "test/data/matpower", case)
 
 #-----------------------------------
 # run the convenience functions for stochastic OPF for IVR and ACR
-result_ivr = solve_sopf_iv(file, PM.IVRPowerModel, ipopt_solver, deg=deg)
+result_ivr = solve_sopf_iv(file, PM.IVRPowerModel, gurobi_solver, deg=deg)
 result_acr = solve_sopf_acr(file, PM.ACRPowerModel, ipopt_solver, deg=deg)
 
 @assert result_ivr["termination_status"] == PM.LOCALLY_SOLVED
