@@ -94,13 +94,13 @@ data["ne_branch"]["3"]["λcmax"] = 1.03643
 #-----------------------------------
 # run the convenience functions for stochastic SCOPF for ACR
 
-result_sscopf = _SPM.run_sscopf_cuts(data, _PM.ACRPowerModel, nlp_solver, deg=deg)
+# result_sscopf = _SPM.run_sscopf_cuts(data, _PM.ACRPowerModel, nlp_solver, deg=deg)
 
-result_ssctnep = _SPM.run_ssctnep_cuts(data, _PM.ACRPowerModel, minlp_solver, deg=deg)
+# result_ssctnep = _SPM.run_ssctnep_cuts(data, _PM.ACRPowerModel, minlp_solver, deg=deg)
 
-result_scopf = _SPM.run_scopf_cuts(data, _PM.ACPPowerModel, gurobi_solver)
+result_scopf = _SPM.run_scopf_cuts(data, _PM.ACPPowerModel, nlp_solver)
 
-result_sctnep = _SPM.run_sctnep_cuts(data, _PM.ACPPowerModel, minlp_solver)
+# result_sctnep = _SPM.run_sctnep_cuts(data, _PM.ACPPowerModel, minlp_solver)
 
 
 ## soc
