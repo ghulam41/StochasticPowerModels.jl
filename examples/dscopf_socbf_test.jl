@@ -1,14 +1,15 @@
+using Pkg
+Pkg.activate(".")
 
 using JuMP
 using Ipopt
 using PowerModels
 using PowerModelsACDC
-using StochasticPowerModels
 using PowerModelsSecurityConstrained
 using PowerModelsACDCsecurityconstrained
 using SCS
 using Gurobi
-
+using StochasticPowerModels
 
 # constants 
 const _PM = PowerModels;
@@ -67,6 +68,7 @@ data["gen_contingencies"] = []
 # result = _SPM.solve_sopf_iv_n(file, _PM.IVRPowerModel, gurobi_solver, deg=deg)
 # result = _SPM.solve_sopf_iv(file, _PM.IVRPowerModel, nlp_solver, deg=deg)
 
+result_scopf = _SPM.run_scopf_cuts(data, _PM.ACPPowerModel, nlp_solver)
 
 # result = _SPM.run_scopf_acdc_benders_cuts(data, _PM.SOCBFPowerModel, nlp_solver, s)
 

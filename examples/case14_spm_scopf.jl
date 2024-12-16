@@ -1,3 +1,6 @@
+using Pkg
+Pkg.activate(".")
+
 
 using JuMP
 using Ipopt
@@ -5,8 +8,8 @@ using Gurobi
 using Juniper
 using PowerModels
 using PowerModelsACDC
-using StochasticPowerModels
 using PowerModelsSecurityConstrained
+using StochasticPowerModels
 
 # constants 
 const _PM = PowerModels
@@ -94,7 +97,7 @@ data["ne_branch"]["3"]["λcmax"] = 1.03643
 #-----------------------------------
 # run the convenience functions for stochastic SCOPF for ACR
 
-# result_sscopf = _SPM.run_sscopf_cuts(data, _PM.ACRPowerModel, nlp_solver, deg=deg)
+result_sscopf = _SPM.run_sscopf_cuts(data, _PM.ACRPowerModel, nlp_solver, deg=deg)
 
 # result_ssctnep = _SPM.run_ssctnep_cuts(data, _PM.ACRPowerModel, minlp_solver, deg=deg)
 
